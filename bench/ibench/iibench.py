@@ -1384,7 +1384,8 @@ def agent_thread(done_flag):
 
         cursor.execute("select vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % FLAGS.table_name)
         internal_vac_count, internal_autovac_count = cursor.fetchall()[0]
-        print("===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" % (now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
+        print("%10s ===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" %
+              (FLAGS.tag, now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
 
         time.sleep(1)
 
