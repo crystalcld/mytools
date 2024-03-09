@@ -111,6 +111,9 @@ DEFINE_boolean('control_autovac', False, 'If we are taking control of the autova
 DEFINE_boolean('enable_pid', False, 'Enable PID control for autovac delay')
 DEFINE_integer('initial_autovac_delay', 60, 'Initial autovacuuming delay')
 
+# For tagging purposes
+DEFINE_string('tag', '', 'Description/Tag of experiment')
+
 DEFINE_integer('my_id', 0, 'With N iibench processes this ranges from 1 to N')
 DEFINE_integer('data_length_max', 10, 'Max size of data in data column')
 DEFINE_integer('data_length_min', 10, 'Min size of data in data column')
@@ -197,6 +200,7 @@ def rthist_new():
   obj = {}
   hist = [0,0,0,0,0,0,0,0,0,0]
   obj['hist'] = hist
+  obj['all_readings'] = []
   obj['max'] = 0
   return obj
 
@@ -206,6 +210,9 @@ def rthist_start(obj):
 def rthist_finish(obj, start):
   now = timeit.default_timer()
   elapsed = now - start
+
+  obj['all_readings'].append(elapsed)
+
   # Linear search assuming the first few buckets get the most responses
   # And when not, then the overhead of this isn't relevant
 
@@ -243,6 +250,13 @@ def rthist_result(obj, prefix):
   res = '%10s %9s %9s %9s %9s %9s %9s %9s %9s %9s %9s %11s\n'\
         '%10s %9d %9d %9d %9d %9d %9d %9d %9d %9d %9d %11.6f' % ( prefix, '256us', '1ms', '4ms', '16ms', '64ms', '256ms', '1s', '4s', '16s', 'gt', 'max',
          prefix, rt[0], rt[1], rt[2], rt[3], rt[4], rt[5], rt[6], rt[7], rt[8], rt[9], obj['max'])
+
+  all_readings = obj['all_readings']
+  all_readings.sort(reverse=True)
+  with open(FLAGS.tag+'_data'+prefix.replace(' ', '_')+'.txt', 'w') as f:
+      for line in all_readings:
+          f.write(f"{line}\n")
+
   return res
 
 def fixup_options():
@@ -930,7 +944,7 @@ def HtapTrx(done_flag, barrier):
   db_conn.close()
   #print("HTAP done at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
 
-def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid):
+def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min_trxid, thread_id):
 
   # block on this until main thread wants all processes to run
   barrier.wait()
@@ -1068,11 +1082,11 @@ def Query(query_generators, shared_var, done_flag, barrier, result_q, shared_min
   else:
     assert False
 
-  extra = 'Query thread: %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
+  extra = 'Query thread #'+str(thread_id)+': %s queries, fetched/query(expected, actual) = ( %s , %.3f )' % (loops, FLAGS.rows_per_query, float(total_count) / loops)
   # print('%s\n' % extra)
 
   db_conn.close()
-  result_q.put((rthist_result(rthist, 'Query rt:'), extra))
+  result_q.put((rthist_result(rthist, 'Query thread #'+str(thread_id)+' rt:'), extra))
 
 def statement_maker(rounds, insert_stmt_q, delete_stmt_q, barrier, shared_min_trxid, rand_data_buf):
   # print("statement_maker: pre-lock at %s\n" % time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time())), flush=True)
@@ -1605,7 +1619,7 @@ def run_benchmark():
     query_thr = []
     query_result = Queue()
     for i in range(FLAGS.query_threads):
-      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid)))
+      query_thr.append(Process(target=Query, args=(query_args, shared_vars[i], done_flag, barrier, query_result, shared_min_trxid, i)))
 
   if not FLAGS.no_inserts:
     insert_stmt_q = Queue(8)
@@ -1704,10 +1718,13 @@ def run_benchmark():
   extra_arr = []
   if FLAGS.query_threads:
     for qthr in query_thr: qthr.join()
-    (qr1, qr2) = query_result.get()
-    for qthr in query_thr: print(qr1)
-    extra_arr.append(qr2)
-    sys.stdout.flush()
+
+    while not query_result.empty():
+        (qr1, qr2) = query_result.get()
+        print(qr1)
+        extra_arr.append(qr2)
+        sys.stdout.flush()
+
     for qthr in query_thr: qthr.terminate()
 
   for qr2 in extra_arr: print(qr2)
