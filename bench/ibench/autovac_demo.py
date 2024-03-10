@@ -2,9 +2,9 @@ import os
 import sys
 from threading import Thread
 
-def do_run(cmd):
+def do_run(cmd, tag):
     print("Running command: %s" % cmd)
-    os.system(cmd)
+    os.system(cmd + " | tee "+tag)
 
 if __name__ == '__main__':
     cmd_base = ('python3 iibench.py --setup --dbms=postgres --db_user=postgres --max_rows=100000000 '
@@ -14,8 +14,8 @@ if __name__ == '__main__':
     cmd_nopid = cmd_base + ' --db_host='+sys.argv[1]+' --db_password='+sys.argv[2]+' --tag="no_pid"'
     cmd_pid = cmd_base + ' --db_host='+sys.argv[3]+' --db_password='+sys.argv[4]+' --tag="pid" --enable_pid --control_autovac'
 
-    t1 = Thread(target = do_run, args = (cmd_nopid, ))
-    t2 = Thread(target = do_run, args = (cmd_pid, ))
+    t1 = Thread(target = do_run, args = (cmd_nopid, "no_pid"))
+    t2 = Thread(target = do_run, args = (cmd_pid, "pid"))
     t1.start()
     t2.start()
     t1.join()
