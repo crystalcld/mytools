@@ -1289,8 +1289,11 @@ def agent_thread(done_flag):
 
     #cursor.execute("select from pg_reload_conf()")
 
+    # Lower frequency limit: 5 mins
     range_min = math.log(1/(5*60.0))
-    range_max = math.log(1.0)
+    # Upper frequency limit: 0.5s
+    range_max = math.log(1/0.5)
+
     #print("Range: ", range_min, range_max)
     pid = PID(Kp=0.5, Ki=0.5, Kd=2.0, setpoint=60.0, output_limits=(range_min, range_max), auto_mode=True)
 
@@ -1364,7 +1367,8 @@ def agent_thread(done_flag):
 
         pid_out = pid(live_pct)
         if FLAGS.enable_pid:
-            current_delay = int(math.ceil(1.0/math.exp(pid_out)))
+            current_delay_raw = math.ceil(1.0/math.exp(pid_out))
+            current_delay = int(current_delay_raw)
             print("PID output %f, current_delay %d" % (pid_out, current_delay))
 
         if prev_delay != current_delay:
@@ -1376,7 +1380,7 @@ def agent_thread(done_flag):
                 #cursor.execute("select from pg_reload_conf()")
 
         if FLAGS.control_autovac:
-            if int(now-last_autovac_time) > current_delay:
+            if now-last_autovac_time > current_delay_raw:
                 last_autovac_time = now
                 print("Vacuuming table...")
                 cursor.execute("vacuum %s" % FLAGS.table_name)
@@ -1387,7 +1391,7 @@ def agent_thread(done_flag):
         print("%10s ===================> Time %.2f: Vac: %d, Internal vac: %d, Internal autovac: %d" %
               (FLAGS.tag, now-initial_time, vacuum_count, internal_vac_count, internal_autovac_count))
 
-        time.sleep(1)
+        time.sleep(0.5)
 
     print("Delay adjustments: ", delay_adjustment_count)
     print("Live tuple: %.2f, Dead tuple: %.2f, Free space: %.2f" % (live_sum / count, dead_sum / count, free_sum / count))

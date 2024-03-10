@@ -23,5 +23,5 @@ if __name__ == '__main__':
 
     os.system("cat no_pid_dataQuery_thread_#* | sort -nr > no_pid_latencies.txt")
     os.system("cat pid_dataQuery_thread_#* | sort -nr > pid_latencies.txt")
-    os.system('echo "plot \'no_pid_latencies.txt\'\nreplot \'pid_latencies.txt\'\npause -1" > gnuplot_script.txt ')
+    os.system('echo "set xla \'query\'\nset yla\'latency\'\nplot \'no_pid_latencies.txt\'\nreplot \'pid_latencies.txt\'\npause -1" > gnuplot_script.txt ')
     os.system('gnuplot gnuplot_script.txt')
