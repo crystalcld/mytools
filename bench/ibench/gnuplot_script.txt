@@ -1,0 +1,12 @@
+set title "Query latency graph"
+set xla 'query number'
+set yla 'query latency (s)'
+
+set y2tics (0.5, 0.75, 1.0, 1.25, 1.5)
+set y2la 'latency ratio (pid to no-pid)'
+
+set style line 1 linecolor rgb '#0000ff' linetype 1 linewidth 1 pointtype 6 pointsize 1
+set style line 2 linecolor rgb '#ff0000' linetype 1 linewidth 1 pointtype 6 pointsize 1
+
+plot 'no_pid_latencies.txt' with linespoints linestyle 1, 'pid_latencies.txt' with linespoints linestyle 2, 'latency_ratio.txt' axis x1y2
+pause -1

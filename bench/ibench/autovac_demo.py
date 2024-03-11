@@ -23,5 +23,18 @@ if __name__ == '__main__':
 
     os.system("cat no_pid_dataQuery_thread_#* | sort -nr > no_pid_latencies.txt")
     os.system("cat pid_dataQuery_thread_#* | sort -nr > pid_latencies.txt")
-    os.system('echo "set xla \'query\'\nset yla\'latency\'\nplot \'no_pid_latencies.txt\'\nreplot \'pid_latencies.txt\'\npause -1" > gnuplot_script.txt ')
+
+    # compute ratio of pid to no-pid
+    with open('latency_ratio.txt', 'w') as file_out:
+        with open('pid_latencies.txt', 'r') as file_pid:
+            with open('no_pid_latencies.txt', 'r') as file_nopid:
+                while True:
+                    line1 = file_pid.readline()
+                    if not line1:
+                        break
+                    line2 = file_nopid.readline()
+                    if not line2:
+                        break
+                    print(float(line1)/float(line2), file=file_out)
+
     os.system('gnuplot gnuplot_script.txt')
