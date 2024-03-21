@@ -13,15 +13,6 @@ from collections import namedtuple
 
 start_date = date(2023, 3, 20)
 
-# Load database configuration
-with open('db_config.json', 'r') as config_file:
-    config = json.load(config_file)
-
-DB_NAME = config["DB_NAME"]
-USER = config["USER"]
-PASSWORD = config["PASSWORD"]
-HOST = config["HOST"]
-
 # Shared counters for update operations
 total_operations = Value('i', 0)  # Total number of operations completed by all workers
 total_duration = Value('d', 0.0)  # Total duration of all operations in seconds
@@ -34,6 +25,10 @@ def parse_arguments():
 
     # Argument parsing for script configuration
     parser = argparse.ArgumentParser(description="PostgreSQL Performance and Vacuum Optimization Experiment.")
+    parser.add_argument("--db-name", type=str, required=True, help="The name of the database.")
+    parser.add_argument("--db-user", type=str, required=True, help="The username for the database.")
+    parser.add_argument("--db-password", type=str, required=True, help="The password for the database.")
+    parser.add_argument("--db-host", type=str, default="localhost", help="The host of the database.")
     parser.add_argument("--initial-rows", type=int, default=10000, help="Total number of rows to initially insert.")
     parser.add_argument("--updated-percentage", type=int, default=20, help="Percentage of initially inserted rows to update.")
     parser.add_argument("--updates-per-cycle", type=int, default=100, help="Number of rows to update in each update cycle.")
@@ -181,7 +176,12 @@ def initialize_table_with_mixed_states(args):
     Create a table with a mix of inserted and updated rows to simulate different database states.
     """
     print(f"{datetime.now()} - Checking table status for {table_name}...")
-    
+
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+
     conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
     conn.autocommit = True
     cur = conn.cursor()
@@ -255,6 +255,12 @@ def continuous_update(args, worker_id, end_time):
     """
     Continuously update rows in the table using a Zipfian distribution for row selection.
     """
+
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+
     while True:
         conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
         conn.autocommit = True
@@ -287,6 +293,12 @@ def continuous_update(args, worker_id, end_time):
 
 def execute_queries(args, end_time):
     table_name = get_table_name(args)
+
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+
     while True:
         conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
         cur = conn.cursor()
@@ -313,6 +325,11 @@ def monitor_performance(args, end_time):
     Periodically log the average latency, cumulative throughput, and the percentage of live and dead tuples.
     """
     table_name = get_table_name(args)
+
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
 
     conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
     conn.autocommit = True
@@ -369,6 +386,12 @@ def monitor_performance(args, end_time):
 
 def vacuum_worker(args, end_time):
     table_name = get_table_name(args)
+
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+
     conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
     conn.autocommit = True  # VACUUM cannot run in a transaction block
     cur = conn.cursor()
@@ -392,6 +415,11 @@ def vacuum_worker(args, end_time):
     conn.close()
 
 def adjust_autovacuum_setting(args):
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+
     conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
     conn.autocommit = True
     cur = conn.cursor()
@@ -452,8 +480,43 @@ def main(args, barrier):
         vacuum_process.join()
 
 def run_with_default_settings(barrier, env_info):
-    ManualInput = namedtuple("ManualInput", ["initial_rows", "updated_percentage", "updates_per_cycle", "num_workers", "duration", "disable_autovacuum", "manualvacuum_enable", "manualvacuum_interval", "extra_columns", "num_indexes", "num_partitions"])
-    args = ManualInput(initial_rows=500_000, updated_percentage=5, updates_per_cycle=10_000, num_workers=50, duration=120, disable_autovacuum=False, manualvacuum_enable=False, manualvacuum_interval=1, extra_columns=0, num_indexes=0, num_partitions=0)
+    ManualInput = namedtuple(
+        "ManualInput",
+        [
+            "db_name",
+            "db_host",
+            "db_user",
+            "db_password",
+            "initial_rows",
+            "updated_percentage",
+            "updates_per_cycle",
+            "num_workers",
+            "duration",
+            "disable_autovacuum",
+            "manualvacuum_enable",
+            "manualvacuum_interval",
+            "extra_columns",
+            "num_indexes",
+            "num_partitions",
+        ],
+    )
+    args = ManualInput(
+        db_name=env_info["db_name"],
+        db_host=env_info["db_host"],
+        db_user=env_info["db_user"],
+        db_password=env_info["db_pwd"],
+        initial_rows=500_000,
+        updated_percentage=5,
+        updates_per_cycle=10_000,
+        num_workers=50,
+        duration=120,
+        disable_autovacuum=False,
+        manualvacuum_enable=False,
+        manualvacuum_interval=1,
+        extra_columns=0,
+        num_indexes=0,
+        num_partitions=0,
+    )
     main(args, barrier)
 
 if __name__ == "__main__":
