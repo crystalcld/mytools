@@ -80,7 +80,7 @@ def learn(resume_id):
     }
 
     environment_configs = {
-        'module_name': 'autovac_driver',
+        'module_name': 'pggrill',
         'function_name': 'run_with_default_settings',
         'initial_size': 100000,
         'update_speed': 32000,
@@ -89,7 +89,7 @@ def learn(resume_id):
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
-        'table_name': 'purchases_index'
+        'table_name': 'test_data_40000_c0_i0_p0'
     }
     experiment_configs = {
         'num_runs': 1,
