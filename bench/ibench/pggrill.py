@@ -453,7 +453,7 @@ def main(args, barrier):
 
 def run_with_default_settings(barrier, env_info):
     ManualInput = namedtuple("ManualInput", ["initial_rows", "updated_percentage", "updates_per_cycle", "num_workers", "duration", "disable_autovacuum", "manualvacuum_enable", "manualvacuum_interval", "extra_columns", "num_indexes", "num_partitions"])
-    args = ManualInput(initial_rows=40000, updated_percentage=5, updates_per_cycle=10000, num_workers=50, duration=30, disable_autovacuum=False, manualvacuum_enable=False, manualvacuum_interval=1, extra_columns=0, num_indexes=0, num_partitions=0)
+    args = ManualInput(initial_rows=500_000, updated_percentage=5, updates_per_cycle=10_000, num_workers=50, duration=120, disable_autovacuum=False, manualvacuum_enable=False, manualvacuum_interval=1, extra_columns=0, num_indexes=0, num_partitions=0)
     main(args, barrier)
 
 if __name__ == "__main__":

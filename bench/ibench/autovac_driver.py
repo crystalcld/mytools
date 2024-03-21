@@ -89,7 +89,7 @@ def learn(resume_id):
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
-        'table_name': 'test_data_40000_c0_i0_p0'
+        'table_name': 'test_data_500000_c0_i0_p0'
     }
     experiment_configs = {
         'num_runs': 1,

@@ -33,10 +33,10 @@ class AutoVacEnv(BaseEnvironment):
 
     def update_stats(self):
         try:
-            self.cursor.execute("select pg_total_relation_size('public.purchases_index')")
+            self.cursor.execute(f"select pg_total_relation_size('public.{self.table_name}')")
             total_space = self.cursor.fetchall()[0][0]
 
-            self.cursor.execute("select pg_table_size('public.purchases_index')")
+            self.cursor.execute(f"select pg_table_size('public.{self.table_name}')")
             used_space = self.cursor.fetchall()[0][0]
         except psycopg2.errors.UndefinedTable:
             print("Table does not exist. Skipping update...")
@@ -88,10 +88,10 @@ class AutoVacEnv(BaseEnvironment):
         return result
 
     def generate_reward(self, did_vacuum):
-        last_live_tup = self.num_live_tuples_buffer[0]
-        last_dead_tup = self.num_dead_tuples_buffer[0]
-        last_read = self.num_read_delta_buffer[0]
-        #print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
+        last_live_tup = self.num_live_tuples_buffer[0] if len(self.num_live_tuples_buffer) > 0 else 0
+        last_dead_tup = self.num_dead_tuples_buffer[0] if len(self.num_live_tuples_buffer) > 0 else 0
+        last_read = self.num_read_delta_buffer[0] if len(self.num_live_tuples_buffer) > 0 else 0
+        print("Last live tup:", last_live_tup, "Last dead tup:", last_dead_tup, "Last_read:", last_read)
 
         # -1 unit of reward equivalent to scanning the entire table (live + dead tuples).
         # The reward is intended to be scale free.
