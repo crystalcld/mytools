@@ -1,3 +1,60 @@
+"""
+PostgreSQL Performance and Vacuum Optimization Tool
+===================================================
+
+Description:
+------------
+This tool is designed to stress test PostgreSQL databases to analyze the performance
+and effectiveness of autovacuum processes. It allows simulating workloads with heavy
+inserts and updates to observe how well the database manages vacuuming under load.
+
+Requirements:
+-------------
+- Python 3.x
+- psycopg2 library
+- Access to a PostgreSQL database
+
+Usage:
+------
+The script accepts command-line arguments to customize the database connection,
+workload characteristics, and vacuuming behavior.
+
+Example command to run the script:
+
+    python main.py --db-name mydatabase --db-user myuser --db-password mypassword --db-host localhost \\
+                   --initial-rows 10000 --updated-percentage 20 --updates-per-cycle 100 --num-workers 4 \\
+                   --duration 60 --disable-autovacuum --manualvacuum-enable --manualvacuum-interval 5 \\
+                   --extra-columns 2 --num-indexes 2 --num-partitions 0
+
+Arguments:
+----------
+--db-name               The name of the PostgreSQL database to connect to.
+--db-user               The username for the database connection.
+--db-password           The password for the database connection.
+--db-host               The host of the PostgreSQL server.
+
+--initial-rows          Number of rows to initially insert into the test table.
+--updated-percentage    Percentage of rows to update in each cycle.
+--updates-per-cycle     Number of rows to update in each batch operation.
+--num-workers           Number of parallel workers to perform updates.
+
+--duration              Duration of the test in seconds.
+--disable-autovacuum    Flag to disable autovacuum for the test table.
+--manualvacuum-enable   Flag to enable manual vacuum calls during the test.
+--manualvacuum-interval Interval in seconds between each manual vacuum call.
+
+--extra-columns         Number of extra text columns to add to the test table.
+--num-indexes           Number of indexes to create on the extra columns.
+--num-partitions        Number of partitions to create for the test table (0 for non-partitioned).
+
+Notes:
+------
+- Ensure that the PostgreSQL user has sufficient privileges to create tables,
+  execute stored procedures, and manage vacuum settings.
+- The script dynamically creates and populates tables and handles vacuuming based
+  on the provided arguments.
+"""
+
 import argparse
 import psycopg2
 import psycopg2.extras
