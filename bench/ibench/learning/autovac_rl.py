@@ -189,7 +189,7 @@ class AutoVacEnv(BaseEnvironment):
         did_vacuum = False
         if action == 0:
             # Not vacuuming
-            print("Action 0: Not vacuuming.")
+            # print("Action 0: Not vacuuming.")
             pass
         elif action == 1:
             # Vacuuming
