@@ -108,7 +108,7 @@ def get_num_partitions(args):
     return args.num_partitions if is_partitioned(args) else 0
 
 def get_table_name(args):
-    return f"test_data_{args.initial_rows}_c{args.extra_columns}_i{args.num_indexes}_p{args.num_partitions}"  # Include the desired size in the table name
+    return get_bench_table_name(args.initial_rows, args.extra_columns, args.num_indexes, args.num_partitions)
 
 def create_stored_procedures(args, cur):
     table_name = get_table_name(args)
@@ -562,19 +562,22 @@ def run_with_default_settings(barrier, env_info):
         db_host=env_info["db_host"],
         db_user=env_info["db_user"],
         db_password=env_info["db_pwd"],
-        initial_rows=500_000,
-        updated_percentage=5,
-        updates_per_cycle=10_000,
-        num_workers=50,
+        initial_rows=env_info['initial_size'],
+        updated_percentage=random.randint(env_info['updated_percentage_range'][0], env_info['updated_percentage_range'][1]),
+        updates_per_cycle=random.randint(env_info['update_speed_range'][0], env_info['update_speed_range'][1]),
+        num_workers=random.randint(env_info['num_workers_range'][0], env_info['num_workers_range'][1]),
         duration=120,
-        disable_autovacuum=False,
+        disable_autovacuum=True,
         manualvacuum_enable=False,
         manualvacuum_interval=1,
-        extra_columns=0,
-        num_indexes=0,
-        num_partitions=0,
+        extra_columns=env_info['num_cols'],
+        num_indexes=env_info['num_indexes'],
+        num_partitions=env_info['num_partitions'],
     )
     main(args, barrier)
+
+def get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions):
+    return f"test_data_{initial_size}_c{num_cols}_i{num_indexes}_p{num_partitions}"
 
 if __name__ == "__main__":
     args = parse_arguments()

@@ -53,3 +53,6 @@ def run_with_default_settings(barrier, env_info):
                     env_info['initial_size'], env_info['update_speed'], env_info['initial_delay'],
                     True, False, True, False)
     run_benchmark(barrier)
+
+def get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions):
+    return "purchases_index"

@@ -3,6 +3,7 @@ from multiprocessing import Barrier, Process
 
 import numpy as np
 import psycopg2
+import random
 
 from learning.environment import BaseEnvironment
 
@@ -21,7 +22,8 @@ class AutoVacEnv(BaseEnvironment):
         self.db_host = env_info['db_host']
         self.db_user = env_info['db_user']
         self.db_pwd = env_info['db_pwd']
-        self.table_name = env_info['table_name']
+        self.table_name_fn = getattr(self.module, env_info['table_name_fn'])
+        self.table_name = None
 
         self.num_live_tuples_buffer = []
         self.num_dead_tuples_buffer = []
@@ -116,6 +118,29 @@ class AutoVacEnv(BaseEnvironment):
             The first state observation from the environment.
         """
 
+        initial_size = self.env_info['initial_size']
+        num_cols = random.randint(self.env_info['num_cols_range'][0], self.env_info['num_cols_range'][1])
+        num_indexes = random.randint(self.env_info['num_indexes_range'][0], self.env_info['num_indexes_range'][1])
+        num_partitions = random.randint(self.env_info['num_partitions_range'][0], self.env_info['num_partitions_range'][1])
+
+        self.env_info['num_cols'] = num_cols
+        self.env_info['num_indexes'] = num_indexes
+        self.env_info['num_partitions'] = num_partitions
+
+        print("Environment info:")
+        for x in self.env_info:
+            print ('\t', x, ':', self.env_info[x])
+
+        self.table_name = self.table_name_fn(initial_size, num_cols, num_indexes, num_partitions)
+
+
+        # Connect to Postgres
+        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
+        conn.set_session(autocommit=True)
+        self.cursor = conn.cursor()
+        print("Resetting stats...")
+        self.cursor.execute("SELECT pg_stat_reset()")
+
         barrier = Barrier(2)
         self.workload_thread = Process(target=self.workload_fn, args=(barrier, self.env_info))
         self.workload_thread.start()
@@ -128,11 +153,7 @@ class AutoVacEnv(BaseEnvironment):
         self.last_autovac_time = time.time()
         self.delay_adjustment_count = 0
 
-        # Connect to Postgres
-        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        conn.set_session(autocommit=True)
-
-        self.cursor = conn.cursor()
+        
         self.cursor.execute("alter table %s set ("
                             "autovacuum_enabled = off,"
                             "autovacuum_vacuum_scale_factor = 0,"
@@ -168,13 +189,13 @@ class AutoVacEnv(BaseEnvironment):
         did_vacuum = False
         if action == 0:
             # Not vacuuming
-            #print("Action 0: Not vacuuming.")
+            print("Action 0: Not vacuuming.")
             pass
         elif action == 1:
             # Vacuuming
             did_vacuum = True
             self.delay_adjustment_count += 1
-            #print("Action 1: Vacuuming...")
+            print("Action 1: Vacuuming...")
         else:
             assert("Invalid action")
 

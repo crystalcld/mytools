@@ -26,15 +26,22 @@ def learn(resume_id):
     environment_configs = {
         'module_name': 'pggrill', # 'pggrill' or 'iibench_driver'
         'function_name': 'run_with_default_settings',
-        'initial_size': 100000,
-        'update_speed': 32000,
+        'initial_size': 1000_000,
+        'update_speed': 32_000, # for iibench only
+        'update_speed_range': [100, 100_000], # for pggrill only
         'initial_delay': 5,
         'db_name': instance_dbname,
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
-        'table_name': 'test_data_500000_c0_i0_p0'
+        'num_cols_range': [0, 0],
+        'num_indexes_range': [0, 0],
+        'num_partitions_range': [0, 0],
+        'updated_percentage_range': [1, 50],
+        'num_workers_range': [1, 50],
+        'table_name_fn': 'get_bench_table_name',
     }
+
     experiment_configs = {
         'num_runs': 1,
         'num_episodes': max_episodes,
