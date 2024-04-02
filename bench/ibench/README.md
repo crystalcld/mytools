@@ -30,11 +30,19 @@ Provide step-by-step instructions to set up the project:
    ```
 
 ## Usage
-Describe how to use the project, including commands to run scripts, train the model, and integrate with PostgreSQL.
+To run the `autovac_driver.py` script, you need to provide command line arguments for the mode and parameters. Here are the command structures for each mode:
 
+### Benchmark Mode
 ```bash
-python autovac_driver.py [options]
+python autovac_driver.py benchmark [max_episodes] [resume_id] [experiment_duration] [model_type] [model1_filename] [model2_filename] [instance_url] [instance_user] [instance_password] [instance_dbname]
 ```
+
+### Learn Mode
+```bash
+python autovac_driver.py learn [max_episodes] [resume_id] [experiment_duration] [model_type] [model1_filename] [model2_filename] [instance_url] [instance_user] [instance_password] [instance_dbname]
+```
+
+Replace the bracketed terms with your actual values.
 
 ## Configuration
 TODO
