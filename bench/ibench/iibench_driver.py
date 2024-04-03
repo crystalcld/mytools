@@ -45,7 +45,7 @@ def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, 
         # Collect and sort query latencies into a single file
         os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
 
-def benchmark(resume_id):
+def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
     for initial_size in tqdm([10000, 100000, 1000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):

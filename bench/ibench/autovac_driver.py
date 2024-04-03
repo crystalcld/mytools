@@ -1,3 +1,4 @@
+import argparse
 import sys
 import time
 
@@ -113,7 +114,7 @@ class SimulatedVacuum:
         self.n_dead_tup = 0
         self.vacuum_count += 1
 
-def learn(resume_id):
+def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
 
@@ -157,32 +158,37 @@ def learn(resume_id):
     rl_glue.do_learn(environment_configs, experiment_configs, agent_configs)
 
 if __name__ == '__main__':
-    cmd = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
+    parser.add_argument('--cmd', type=str, choices=['benchmark', 'learn'], help='Command to execute (benchmark or learn)')
+    parser.add_argument('--max-episodes', type=int, default=10, help='Maximum number of episodes for the experiment')
+    parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
+    parser.add_argument('--experiment-duration', type=int, default=60, help='Duration of the experiment in seconds')
+    parser.add_argument('--model-type', type=str, choices=['simulated', 'real'], help='Type of the model (simulated or real)')
+    parser.add_argument('--model1-filename', type=str, help='Filename for the first model')
+    parser.add_argument('--model2-filename', type=str, help='Filename for the second model')
+    parser.add_argument('--instance-url', type=str, help='URL of the database instance')
+    parser.add_argument('--instance-user', type=str, help='Database user')
+    parser.add_argument('--instance-password', type=str, help='Database password')
+    parser.add_argument('--instance-dbname', type=str, help='Database name')
 
-    global max_episodes
-    max_episodes = int(sys.argv[2])
-    global resume_id
-    resume_id = int(sys.argv[3])
-    global experiment_duration
-    experiment_duration = int(sys.argv[4])
-    global model_type
-    model_type = sys.argv[5]
-    global model1_filename
-    model1_filename = sys.argv[6]
-    global model2_filename
-    model2_filename = sys.argv[7]
-    global instance_url
-    instance_url = sys.argv[8]
-    global instance_user
-    instance_user = sys.argv[9]
-    global instance_password
-    instance_password = sys.argv[10]
-    global instance_dbname
-    instance_dbname = sys.argv[11]
+    args = parser.parse_args()
+    
+    cmd = args.cmd
+
+    max_episodes = args.max_episodes
+    resume_id = args.resume_id
+    experiment_duration = args.experiment_duration
+    model_type = args.model_type
+    model1_filename = args.model1_filename
+    model2_filename = args.model2_filename
+    instance_url = args.instance_url
+    instance_user = args.instance_user
+    instance_password = args.instance_password
+    instance_dbname = args.instance_dbname
 
     if cmd == "benchmark":
-        benchmark(resume_id)
+        benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
-        learn(resume_id)
+        learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:
         print("Invalid command")
