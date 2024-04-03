@@ -8,7 +8,7 @@ from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 import psycopg2
 
-from iibench_driver import run_with_params, getParamsFromExperimentId, run_with_default_settings
+from workloads.iibench_driver import run_with_params, getParamsFromExperimentId, run_with_default_settings
 
 from tqdm.auto import tqdm
 
