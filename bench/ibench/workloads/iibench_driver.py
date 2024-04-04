@@ -59,17 +59,22 @@ def run_with_params(params):
         # Collect and sort query latencies into a single file
         os.system("cat %s_dataQuery_thread_#* | sort -nr > %s_latencies.txt" % (tag, tag))
 
-def getParamsFromExperimentId(experiment_id):
+def collectExperimentParams(env_info):
+    experiment_id = env_info['experiment_id']
     # Vary update speed from 1000 to 128000
     update_speed = math.ceil(1000.0*math.pow(2, experiment_id % 8))
     # Vary initial size from 10^4 to 10^6
     initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
 
-    return initial_size, update_speed
+    env_info['initial_size'] = initial_size
+    env_info['update_speed'] = update_speed
+    env_info['num_cols'] = -1
+    env_info['num_indexes'] = -1
+    env_info['num_partitions'] = -1
+    env_info['table_name'] = "purchases_index"
 
 def run_with_default_settings(barrier, env_info):
-    experiment_id = env_info['experiment_id']
-    initial_size, update_speed = getParamsFromExperimentId(experiment_id)
+    collectExperimentParams(env_info)
 
     params = {
         'apply_options_only': True,
@@ -78,8 +83,8 @@ def run_with_default_settings(barrier, env_info):
         'db_user': env_info['db_user'],
         'db_pwd': env_info['db_pwd'],
         'db_name': env_info['db_name'],
-        'initial_size': initial_size,
-        'update_speed': update_speed,
+        'initial_size': env_info['initial_size'],
+        'update_speed': env_info['update_speed'],
         'initial_delay': env_info['initial_delay'],
         'max_seconds': env_info['max_seconds'],
         'control_autovac': True,
@@ -91,3 +96,4 @@ def run_with_default_settings(barrier, env_info):
 
     run_with_params(params)
     run_benchmark(barrier)
+

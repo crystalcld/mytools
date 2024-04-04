@@ -8,11 +8,13 @@ from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 import psycopg2
 
-from workloads.iibench_driver import run_with_params, getParamsFromExperimentId, run_with_default_settings
+from workloads.iibench_driver import run_with_params, collectExperimentParams, run_with_default_settings
 
 from tqdm.auto import tqdm
 
 from multiprocessing import Barrier, Process
+
+import random
 
 def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
@@ -119,7 +121,25 @@ class PGStatAndVacuum:
         self.db_host = env_info['db_host']
         self.db_user = env_info['db_user']
         self.db_pwd = env_info['db_pwd']
-        self.table_name = env_info['table_name']
+
+        collectExperimentParams(self.env_info)
+        self.initial_size = self.env_info['initial_size']
+        self.update_speed = self.env_info['update_speed']
+        self.num_cols = self.env_info['num_cols']
+        self.num_indexes = self.env_info['num_indexes']
+        self.num_partitions = self.env_info['num_partitions']
+        self.table_name = self.env_info['table_name']
+
+        print("Environment info (for PGStatAndVacuum):")
+        for x in self.env_info:
+            print ('\t', x, ':', self.env_info[x])
+
+        # Connect to Postgres
+        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
+        conn.set_session(autocommit=True)
+        self.cursor = conn.cursor()
+        print("Resetting stats...")
+        self.cursor.execute("SELECT pg_stat_reset()")
 
         barrier = Barrier(2)
         self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
@@ -174,9 +194,19 @@ class PGStatAndVacuum:
 class SimulatedVacuum:
     def startExp(self, env_info):
         self.env_info = env_info
-        self.initial_size, self.update_speed = getParamsFromExperimentId(self.env_info['experiment_id'])
+        collectExperimentParams(self.env_info)
+        self.initial_size = self.env_info['initial_size']
+        self.update_speed = self.env_info['update_speed']
+        self.num_cols = self.env_info['num_cols']
+        self.num_indexes = self.env_info['num_indexes']
+        self.num_partitions = self.env_info['num_partitions']
+        self.table_name = self.env_info['table_name']
+
+        print("Environment info (for SimulatedVacuum):")
+        for x in self.env_info:
+            print ('\t', x, ':', self.env_info[x])
+
         self.env_info['experiment_id'] += 1
-        #print("Params: ", self.initial_size, self.update_speed)
 
         self.approx_bytes_per_tuple = 100
         self.used_space = 0
