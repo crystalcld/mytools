@@ -68,9 +68,6 @@ def collectExperimentParams(env_info):
 
     env_info['initial_size'] = initial_size
     env_info['update_speed'] = update_speed
-    env_info['num_cols'] = -1
-    env_info['num_indexes'] = -1
-    env_info['num_partitions'] = -1
     env_info['table_name'] = "purchases_index"
 
 def run_with_default_settings(barrier, env_info):

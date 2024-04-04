@@ -6,10 +6,6 @@ class SimulatedVacuum:
         collectExperimentParams(self.env_info)
         self.initial_size = self.env_info['initial_size']
         self.update_speed = self.env_info['update_speed']
-        self.num_cols = self.env_info['num_cols']
-        self.num_indexes = self.env_info['num_indexes']
-        self.num_partitions = self.env_info['num_partitions']
-        self.table_name = self.env_info['table_name']
 
         print("Environment info (for SimulatedVacuum):")
         for x in self.env_info:
