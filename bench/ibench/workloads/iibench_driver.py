@@ -4,24 +4,8 @@ import math
 
 from iibench import apply_options, run_main, run_benchmark
 
-def run_with_params(params):
-    # Extracting parameters from the dictionary
-    apply_options_only = params['apply_options_only']
-    tag = params['tag']
-    db_host = params['db_host']
-    db_user = params['db_user']
-    db_pwd = params['db_pwd']
-    db_name = params['db_name']
-    initial_size = params['initial_size']
-    update_speed = params['update_speed']
-    initial_delay = params['initial_delay']
-    max_seconds = params['max_seconds']
-    control_autovac = params['control_autovac']
-    enable_pid = params['enable_pid']
-    enable_learning = params['enable_learning']
-    rl_model_filename = params['rl_model_filename']
-    enable_agent = params['enable_agent']
-
+def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
+                    initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
     cmd = ["--setup", "--dbms=postgres", "--tag=%s" % tag,
            "--db_user=%s" % db_user, "--db_name=%s" % db_name,
            "--db_host=%s" % db_host, "--db_password=%s" % db_pwd,
@@ -66,34 +50,20 @@ def collectExperimentParams(env_info):
     # Vary initial size from 10^4 to 10^6
     initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
 
-    env_info['initial_size'] = initial_size
-    env_info['update_speed'] = update_speed
-    env_info['num_cols'] = -1
-    env_info['num_indexes'] = -1
-    env_info['num_partitions'] = -1
-    env_info['table_name'] = "purchases_index"
-
-def run_with_default_settings(barrier, env_info):
-    collectExperimentParams(env_info)
-
-    params = {
-        'apply_options_only': True,
-        'tag': "rl_model",
-        'db_host': env_info['db_host'],
-        'db_user': env_info['db_user'],
-        'db_pwd': env_info['db_pwd'],
-        'db_name': env_info['db_name'],
-        'initial_size': env_info['initial_size'],
-        'update_speed': env_info['update_speed'],
-        'initial_delay': env_info['initial_delay'],
-        'max_seconds': env_info['max_seconds'],
-        'control_autovac': True,
-        'enable_pid': False,
-        'enable_learning': True,
-        'rl_model_filename': "",
-        'enable_agent': False
+    return {
+        'initial_size': initial_size,
+        'update_speed': update_speed,
+        'table_name': env_info['table_name'],
     }
 
-    run_with_params(params)
+def run_with_default_settings(barrier, env_info):
+    params = collectExperimentParams(env_info)
+    initial_size = params['initial_size']
+    update_speed = params['update_speed']
+
+    run_with_params(True, "rl_model",
+                    env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],
+                    initial_size, update_speed, env_info['initial_delay'], env_info['max_seconds'],
+                    True, False, True, "", False)
     run_benchmark(barrier)
 

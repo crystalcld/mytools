@@ -1,20 +1,19 @@
 import os
 import argparse
 import sys
-import time
 
 from learning.autovac_rl import AutoVacEnv
 from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
-import psycopg2
 
-from workloads.pggrill import run_with_params, collectExperimentParams, run_with_default_settings
+from workloads.pggrill import run_with_params
 
 from tqdm.auto import tqdm
 
 from multiprocessing import Barrier, Process
 
-import random
+from executors.simulated_vacuum import SimulatedVacuum
+from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
 def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     id = 0
@@ -120,138 +119,6 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
             print("Gnuplot command: ", gnuplot_cmd)
             os.system(gnuplot_cmd)
 
-
-class PGStatAndVacuum:
-    def startExp(self, env_info):
-        self.env_info = env_info
-        self.db_name = env_info['db_name']
-        self.db_host = env_info['db_host']
-        self.db_user = env_info['db_user']
-        self.db_pwd = env_info['db_pwd']
-
-        collectExperimentParams(self.env_info)
-        self.initial_size = self.env_info['initial_size']
-        self.update_speed = self.env_info['update_speed']
-        self.num_cols = self.env_info['num_cols']
-        self.num_indexes = self.env_info['num_indexes']
-        self.num_partitions = self.env_info['num_partitions']
-        self.table_name = self.env_info['table_name']
-
-        print("Environment info (for PGStatAndVacuum):")
-        for x in self.env_info:
-            print ('\t', x, ':', self.env_info[x])
-
-        # Connect to Postgres
-        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        conn.set_session(autocommit=True)
-        self.cursor = conn.cursor()
-        print("Resetting stats...")
-        self.cursor.execute("SELECT pg_stat_reset()")
-
-        barrier = Barrier(2)
-        self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
-        self.workload_thread.start()
-        # We wait until the workload is initialized and ready to start
-        barrier.wait()
-
-        self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        self.conn.set_session(autocommit=True)
-        self.cursor = self.conn.cursor()
-
-        print("Disabling autovacuum...")
-        self.cursor.execute("alter table %s set ("
-                            "autovacuum_enabled = off,"
-                            "autovacuum_vacuum_scale_factor = 0,"
-                            "autovacuum_vacuum_insert_scale_factor = 0,"
-                            "autovacuum_vacuum_threshold = 0,"
-                            "autovacuum_vacuum_cost_delay = 0,"
-                            "autovacuum_vacuum_cost_limit = 10000"
-                            ")" % self.table_name)
-
-        self.env_info['experiment_id'] += 1
-
-    # Returns True if the run has finished
-    def step(self):
-        if not self.workload_thread.is_alive():
-            return True
-
-        time.sleep(1)
-        return False
-
-    def getTotalAndUsedSpace(self):
-        try :
-            self.cursor.execute("select pg_total_relation_size('public.%s')" % self.table_name)
-            total_space = self.cursor.fetchall()[0][0]
-
-            self.cursor.execute("select pg_table_size('public.%s')" % self.table_name)
-            used_space = self.cursor.fetchall()[0][0]
-
-            return total_space, used_space
-        except psycopg2.errors.UndefinedTable:
-            print("Table does not exist.")
-            return 0, 0
-
-    def getTupleStats(self):
-        self.cursor.execute("select n_live_tup, n_dead_tup, seq_tup_read, vacuum_count, autovacuum_count from pg_stat_user_tables where relname = '%s'" % self.table_name)
-        return self.cursor.fetchall()[0]
-
-    def doVacuum(self):
-        self.cursor.execute("vacuum %s" % self.table_name)
-
-class SimulatedVacuum:
-    def startExp(self, env_info):
-        self.env_info = env_info
-        collectExperimentParams(self.env_info)
-        self.initial_size = self.env_info['initial_size']
-        self.update_speed = self.env_info['update_speed']
-        self.num_cols = self.env_info['num_cols']
-        self.num_indexes = self.env_info['num_indexes']
-        self.num_partitions = self.env_info['num_partitions']
-        self.table_name = self.env_info['table_name']
-
-        print("Environment info (for SimulatedVacuum):")
-        for x in self.env_info:
-            print ('\t', x, ':', self.env_info[x])
-
-        self.env_info['experiment_id'] += 1
-
-        self.approx_bytes_per_tuple = 100
-        self.used_space = 0
-        self.total_space = 0
-
-        self.n_live_tup = self.initial_size
-        self.n_dead_tup = 0
-        self.seq_tup_read = 0
-        self.vacuum_count = 0
-
-        self.step_count = 0
-        self.max_steps = env_info['max_seconds']
-
-    def step(self):
-        self.n_dead_tup += self.update_speed
-
-        sum = self.n_live_tup+self.n_dead_tup
-        if sum > 0:
-            # Weigh how many tuples we read per second by how many dead tuples we have.
-            self.seq_tup_read += 15*3*self.n_live_tup*((self.n_live_tup/sum) ** 0.5)
-
-        self.used_space = self.approx_bytes_per_tuple*sum
-        if self.used_space > self.total_space:
-            self.total_space = self.used_space
-
-        self.step_count += 1
-        return self.step_count >= self.max_steps
-
-    def getTotalAndUsedSpace(self):
-        return self.total_space, self.used_space
-
-    def getTupleStats(self):
-        return self.n_live_tup, self.n_dead_tup, self.seq_tup_read, self.vacuum_count, 0
-
-    def doVacuum(self):
-        self.n_dead_tup = 0
-        self.vacuum_count += 1
-
 def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
@@ -266,10 +133,13 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'model_filename' : model1_filename
     }
 
+    is_replay = False
     if model_type == "simulated":
         instance = SimulatedVacuum()
-    elif model_type == "real":
+    elif model_type == "real" or model_type == "real_replay":
         instance = PGStatAndVacuum()
+        if model_type == "real_replay":
+            is_replay = True
     else:
         assert("Invalid model type")
 
@@ -280,8 +150,13 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
+        'table_name': 'purchases_index',
         'initial_delay': 5,
         'max_seconds': experiment_duration,
+        'approx_bytes_per_tuple': 100,
+        'is_replay': is_replay,
+        'replay_filename_mask': 'replay_n%d.txt',
+        'state_history_length': 10,
         # START pggrill only
         'initial_size_range': [1000_000, 1000_000],
         'update_speed_range': [100, 100_000],

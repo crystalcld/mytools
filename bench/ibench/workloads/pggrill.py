@@ -533,23 +533,29 @@ def collectExperimentParams(env_info):
     num_partitions = random.randint(env_info['num_partitions_range'][0], env_info['num_partitions_range'][1])
     updated_percentage=random.randint(env_info['updated_percentage_range'][0], env_info['updated_percentage_range'][1])
     num_workers=random.randint(env_info['num_workers_range'][0], env_info['num_workers_range'][1])
+    params = {
+        'initial_size': initial_size,
+        'update_speed': update_speed,
+        'num_cols': num_cols,
+        'num_indexes': num_indexes,
+        'num_partitions': num_partitions,
+        'updated_percentage': updated_percentage,
+        'num_workers': num_workers,
+        'table_name': env_info['table_name'],
+    }
 
-    env_info['initial_size'] = initial_size
-    env_info['update_speed'] = update_speed
-    env_info['num_cols'] = num_cols
-    env_info['num_indexes'] = num_indexes
-    env_info['num_partitions'] = num_partitions
-    env_info['updated_percentage'] = updated_percentage
-    env_info['num_workers'] = num_workers
+    calc_params = collectCalculatedParams(params)
+    params = merge_dicts(params, calc_params)
+    return params
 
-    addCalculatedParams(env_info)
-
-def addCalculatedParams(env_info):
-    table_name = get_bench_table_name(env_info['initial_size'], env_info['num_cols'], env_info['num_indexes'], env_info['num_partitions'])
-    env_info['table_name'] = table_name
+def collectCalculatedParams(params):
+    table_name = get_bench_table_name(params['initial_size'], params['num_cols'], params['num_indexes'], params['num_partitions'])
+    return {
+        'table_name': table_name,
+    }
+    
 
 def env_info_to_named_tuple(env_info):
-
     ManualInput = namedtuple(
         "ManualInput",
         [
@@ -592,14 +598,30 @@ def env_info_to_named_tuple(env_info):
 
     return args
 
+def merge_dicts(dict1, dict2):
+    """
+    Merge two dictionaries into one, with values from the second dictionary
+    taking precedence if there are duplicate keys.
+
+    Parameters:
+    dict1 (dict): First dictionary to merge.
+    dict2 (dict): Second dictionary to merge, whose values will take precedence.
+
+    Returns:
+    dict: Merged dictionary containing all keys and values from both input dictionaries.
+    """
+    return {**dict1, **dict2}
+
 def run_with_params(env_info, barrier=None):
-    addCalculatedParams(env_info)
+    calc_params = collectCalculatedParams(env_info)
+    env_info = merge_dicts(env_info, calc_params)
     args = env_info_to_named_tuple(env_info)
     main(args, barrier)
 
 
 def run_with_default_settings(barrier, env_info):
-    collectExperimentParams(env_info)
+    params = collectExperimentParams(env_info)
+    env_info = merge_dicts(env_info, params)
     run_with_params(env_info, barrier)
 
 def get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions):
