@@ -8,7 +8,7 @@ from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 import psycopg2
 
-from workloads.iibench_driver import run_with_params, collectExperimentParams, run_with_default_settings
+from workloads.pggrill import run_with_params, collectExperimentParams, run_with_default_settings
 
 from tqdm.auto import tqdm
 
@@ -48,65 +48,72 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
                 'enable_pid': False,
                 'enable_learning': False,
                 'rl_model_filename': model1_filename,
-                'enable_agent': True
+                'enable_agent': True,
+                # START pggrill only
+                'num_cols': 0,
+                'num_indexes': 0,
+                'num_partitions': 0,
+                'updated_percentage': 10,
+                'num_workers': 5,
+                # END pggrill only
             })
 
-            # Control with RL model #2
-            run_with_params({
-                'apply_options_only': False,
-                'tag': tag2,
-                'db_host': instance_url,
-                'db_user': instance_user,
-                'db_pwd': instance_password,
-                'db_name': instance_dbname,
-                'initial_size': initial_size,
-                'update_speed': update_speed,
-                'initial_delay': 5,
-                'max_seconds': experiment_duration,
-                'control_autovac': True,
-                'enable_pid': False,
-                'enable_learning': False,
-                'rl_model_filename': model2_filename,
-                'enable_agent': True
-            })
+            # # Control with RL model #2
+            # run_with_params({
+            #     'apply_options_only': False,
+            #     'tag': tag2,
+            #     'db_host': instance_url,
+            #     'db_user': instance_user,
+            #     'db_pwd': instance_password,
+            #     'db_name': instance_dbname,
+            #     'initial_size': initial_size,
+            #     'update_speed': update_speed,
+            #     'initial_delay': 5,
+            #     'max_seconds': experiment_duration,
+            #     'control_autovac': True,
+            #     'enable_pid': False,
+            #     'enable_learning': False,
+            #     'rl_model_filename': model2_filename,
+            #     'enable_agent': True
+            # })
 
-            # Control with PID
-            run_with_params({
-                'apply_options_only': False,
-                'tag': tag3,
-                'db_host': instance_url,
-                'db_user': instance_user,
-                'db_pwd': instance_password,
-                'db_name': instance_dbname,
-                'initial_size': initial_size,
-                'update_speed': update_speed,
-                'initial_delay': 5,
-                'max_seconds': experiment_duration,
-                'control_autovac': True,
-                'enable_pid': True,
-                'enable_learning': False,
-                'rl_model_filename': "",
-                'enable_agent': True
-            })
+            # # Control with PID
+            # run_with_params({
+            #     'apply_options_only': False,
+            #     'tag': tag3,
+            #     'db_host': instance_url,
+            #     'db_user': instance_user,
+            #     'db_pwd': instance_password,
+            #     'db_name': instance_dbname,
+            #     'initial_size': initial_size,
+            #     'update_speed': update_speed,
+            #     'initial_delay': 5,
+            #     'max_seconds': experiment_duration,
+            #     'control_autovac': True,
+            #     'enable_pid': True,
+            #     'enable_learning': False,
+            #     'rl_model_filename': "",
+            #     'enable_agent': True
+            # })
 
-            # Control with default autovacuum
-            run_with_params({
-                'apply_options_only': False,
-                'tag': tag4,
-                'db_host': instance_url,
-                'db_user': instance_user,
-                'db_pwd': instance_password,
-                'db_name': instance_dbname,
-                'initial_size': initial_size,
-                'update_speed': update_speed,
-                'initial_delay': 5,
-                'max_seconds': experiment_duration,
-                'control_autovac': False,
-                'enable_pid': False,
-                'enable_learning': False,
-                'rl_model_filename': "",
-                'enable_agent': True
-            })
+            # # Control with default autovacuum
+            # run_with_params({
+            #     'apply_options_only': False,
+            #     'tag': tag4,
+            #     'db_host': instance_url,
+            #     'db_user': instance_user,
+            #     'db_pwd': instance_password,
+            #     'db_name': instance_dbname,
+            #     'initial_size': initial_size,
+            #     'update_speed': update_speed,
+            #     'initial_delay': 5,
+            #     'max_seconds': experiment_duration,
+            #     'control_autovac': False,
+            #     'enable_pid': False,
+            #     'enable_learning': False,
+            #     'rl_model_filename': "",
+            #     'enable_agent': True
+            # })
 
             gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
                            % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))

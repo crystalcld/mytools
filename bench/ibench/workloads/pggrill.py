@@ -97,15 +97,15 @@ def get_num_partitions(args):
     return args.num_partitions if is_partitioned(args) else 0
 
 def get_table_name(args):
-    return get_bench_table_name(args.initial_rows, args.extra_columns, args.num_indexes, args.num_partitions)
+    return args.table_name
 
 def create_stored_procedures(args, cur):
     table_name = get_table_name(args)
     partitions = get_num_partitions(args)
-    column_usages = ''.join([f", extra{i}" for i in range(1, args.extra_columns + 1)])
-    column_data_def = ''.join([f"extra_data{i} text;\n" for i in range(1, args.extra_columns + 1)])
-    column_data = ''.join([f"extra_data{i} := md5(random()::text);\n" for i in range(1, args.extra_columns + 1)])
-    column_data_usages = ''.join([f", extra_data{i}" for i in range(1, args.extra_columns + 1)])
+    column_usages = ''.join([f", extra{i}" for i in range(1, args.num_cols + 1)])
+    column_data_def = ''.join([f"extra_data{i} text;\n" for i in range(1, args.num_cols + 1)])
+    column_data = ''.join([f"extra_data{i} := md5(random()::text);\n" for i in range(1, args.num_cols + 1)])
+    column_data_usages = ''.join([f", extra_data{i}" for i in range(1, args.num_cols + 1)])
     BULK_INSERT_PROCEDURE = f"""
     CREATE OR REPLACE PROCEDURE bulk_insert_data(total_rows int, start_date date)
     LANGUAGE plpgsql
@@ -154,11 +154,11 @@ def create_stored_procedures(args, cur):
 
 def create_non_partitioned_table(args, cur):
     table_name = get_table_name(args)
-    print(f"{datetime.now()} - Creating non-partitioned table {table_name} with {args.extra_columns} extra columns...")
+    print(f"{datetime.now()} - Creating non-partitioned table {table_name} with {args.num_cols} extra columns...")
 
     cur.execute(f"DROP TABLE IF EXISTS {table_name};")
 
-    column_definitions = ''.join([f"extra{i} TEXT, " for i in range(1, args.extra_columns + 1)])
+    column_definitions = ''.join([f"extra{i} TEXT, " for i in range(1, args.num_cols + 1)])
     cur.execute(f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL PRIMARY KEY,
@@ -171,11 +171,11 @@ def create_non_partitioned_table(args, cur):
 def create_partitioned_table(args, cur):
     table_name = get_table_name(args)
     partitions = get_num_partitions(args)
-    print(f"{datetime.now()} - Creating partitioned table {table_name} with daily partitions and {args.extra_columns} extra columns...")
+    print(f"{datetime.now()} - Creating partitioned table {table_name} with daily partitions and {args.num_cols} extra columns...")
 
     cur.execute(f"DROP TABLE IF EXISTS {table_name};")
 
-    column_definitions = ''.join([f"extra{i} TEXT, " for i in range(1, args.extra_columns + 1)])
+    column_definitions = ''.join([f"extra{i} TEXT, " for i in range(1, args.num_cols + 1)])
     cur.execute(f"""
         CREATE TABLE IF NOT EXISTS {table_name} (
             id SERIAL,
@@ -238,7 +238,7 @@ def initialize_table_with_mixed_states(args):
     cur.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = %s AND table_schema = 'public'", (table_name,))
     if cur.fetchone()[0] == 1:
         cur.execute(f"SELECT COUNT(*) FROM {table_name}")
-        if cur.fetchone()[0] == args.initial_rows and has_n_partitions(args, cur):
+        if cur.fetchone()[0] == args.initial_size and has_n_partitions(args, cur):
             # Table exists, skip initialization
             print(f"{datetime.now()} - Table {table_name} exists with the desired number of rows. Skipping truncation and initial population.")
             skip_insert = True
@@ -257,17 +257,17 @@ def initialize_table_with_mixed_states(args):
         create_indexes(args, cur)
         create_stored_procedures(args, cur)
 
-        print(f"{datetime.now()} - Populating table {table_name} with {args.initial_rows} rows and {args.extra_columns} extra columns via bulk insert...")
+        print(f"{datetime.now()} - Populating table {table_name} with {args.initial_size} rows and {args.num_cols} extra columns via bulk insert...")
         # Use CALL for procedures instead of callproc
-        cur.execute("CALL bulk_insert_data(%s, %s);", (args.initial_rows, start_date))
+        cur.execute("CALL bulk_insert_data(%s, %s);", (args.initial_size, start_date))
 
     # Adjust autovacuum setting based on command-line flag
     adjust_autovacuum_setting(args)
 
     print(f"{datetime.now()} - Table {table_name} applying initial updates.")
     # Update specified percentage of rows
-    update_count = int(args.initial_rows * (args.updated_percentage / 100.0))
-    apply_batch_updates(cur, 0, update_count, 1, args.initial_rows)
+    update_count = int(args.initial_size * (args.updated_percentage / 100.0))
+    apply_batch_updates(cur, 0, update_count, 1, args.initial_size)
 
     print(f"{datetime.now()} - Table {table_name} preparation completed.")
 
@@ -278,7 +278,7 @@ def create_indexes(args, cur):
     table_name = get_table_name(args)
     indexes = args.num_indexes
     print(f"{datetime.now()} - Creating {indexes} indexes on {table_name}...")
-    for i in range(1, min(indexes, args.extra_columns) + 1):
+    for i in range(1, min(indexes, args.num_cols) + 1):
         cur.execute(f"CREATE INDEX IF NOT EXISTS {table_name}_extra{i}_idx ON {table_name} (extra{i});")
 
 def apply_batch_updates(cur, worker_id, update_count, start_id, end_id):
@@ -316,7 +316,7 @@ def continuous_update(args, worker_id, end_time):
             while datetime.now() < end_time:
                 start_time = datetime.now()
 
-                total_rows = args.initial_rows
+                total_rows = args.initial_size
                 rows_per_worker = total_rows // args.num_workers
                 start_id = worker_id * rows_per_worker + 1
                 end_id = start_id + rows_per_worker
@@ -531,21 +531,24 @@ def collectExperimentParams(env_info):
     num_cols = random.randint(env_info['num_cols_range'][0], env_info['num_cols_range'][1])
     num_indexes = random.randint(env_info['num_indexes_range'][0], env_info['num_indexes_range'][1])
     num_partitions = random.randint(env_info['num_partitions_range'][0], env_info['num_partitions_range'][1])
-    table_name = get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions)
+    updated_percentage=random.randint(env_info['updated_percentage_range'][0], env_info['updated_percentage_range'][1])
+    num_workers=random.randint(env_info['num_workers_range'][0], env_info['num_workers_range'][1])
 
     env_info['initial_size'] = initial_size
     env_info['update_speed'] = update_speed
     env_info['num_cols'] = num_cols
     env_info['num_indexes'] = num_indexes
     env_info['num_partitions'] = num_partitions
+    env_info['updated_percentage'] = updated_percentage
+    env_info['num_workers'] = num_workers
+
+    addCalculatedParams(env_info)
+
+def addCalculatedParams(env_info):
+    table_name = get_bench_table_name(env_info['initial_size'], env_info['num_cols'], env_info['num_indexes'], env_info['num_partitions'])
     env_info['table_name'] = table_name
 
-def run_with_params(args):
-    main(args, None)
-
-
-def run_with_default_settings(barrier, env_info):
-    collectExperimentParams(env_info)
+def env_info_to_named_tuple(env_info):
 
     ManualInput = namedtuple(
         "ManualInput",
@@ -554,7 +557,7 @@ def run_with_default_settings(barrier, env_info):
             "db_host",
             "db_user",
             "db_password",
-            "initial_rows",
+            "initial_size",
             "updated_percentage",
             "updates_per_cycle",
             "num_workers",
@@ -562,9 +565,10 @@ def run_with_default_settings(barrier, env_info):
             "disable_autovacuum",
             "manualvacuum_enable",
             "manualvacuum_interval",
-            "extra_columns",
+            "num_cols",
             "num_indexes",
             "num_partitions",
+            "table_name",
         ],
     )
     args = ManualInput(
@@ -572,19 +576,31 @@ def run_with_default_settings(barrier, env_info):
         db_host=env_info["db_host"],
         db_user=env_info["db_user"],
         db_password=env_info["db_pwd"],
-        initial_rows=env_info['initial_size'],
-        updated_percentage=random.randint(env_info['updated_percentage_range'][0], env_info['updated_percentage_range'][1]),
+        initial_size=env_info['initial_size'],
+        updated_percentage=env_info['updated_percentage'],
         updates_per_cycle=env_info['update_speed'],
-        num_workers=random.randint(env_info['num_workers_range'][0], env_info['num_workers_range'][1]),
+        num_workers=env_info['num_workers'],
         duration=120,
         disable_autovacuum=True,
         manualvacuum_enable=False,
         manualvacuum_interval=1,
-        extra_columns=env_info['num_cols'],
+        num_cols=env_info['num_cols'],
         num_indexes=env_info['num_indexes'],
         num_partitions=env_info['num_partitions'],
+        table_name=env_info['table_name'],
     )
+
+    return args
+
+def run_with_params(env_info, barrier=None):
+    addCalculatedParams(env_info)
+    args = env_info_to_named_tuple(env_info)
     main(args, barrier)
+
+
+def run_with_default_settings(barrier, env_info):
+    collectExperimentParams(env_info)
+    run_with_params(env_info, barrier)
 
 def get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions):
     return f"test_data_{initial_size}_c{num_cols}_i{num_indexes}_p{num_partitions}"
