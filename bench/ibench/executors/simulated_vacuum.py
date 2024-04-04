@@ -4,15 +4,11 @@ from executors.vacuum_experiment import VacuumExperiment
 class SimulatedVacuum(VacuumExperiment):
     def startExp(self, env_info):
         self.env_info = env_info
-        params = collectExperimentParams(self.env_info)
-        self.initial_size = params['initial_size']
-        self.update_speed = params['update_speed']
+        self.initial_size, self.update_speed = collectExperimentParams(self.env_info)
 
         print("Environment info (for SimulatedVacuum):")
         for x in self.env_info:
             print ('\t', x, ':', self.env_info[x])
-        for x in params:
-            print ('\t', x, ':', params[x])
 
         self.env_info['experiment_id'] += 1
 

@@ -85,6 +85,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
+        'table_name': 'purchases_index',
         'initial_delay': 5,
         'max_seconds': experiment_duration,
         'approx_bytes_per_tuple': 100,
