@@ -6,11 +6,9 @@ from learning.autovac_rl import AutoVacEnv
 from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 
-from workloads.pggrill import run_with_params
+from workloads.iibench_driver import run_with_params
 
 from tqdm.auto import tqdm
-
-from multiprocessing import Barrier, Process
 
 from executors.simulated_vacuum import SimulatedVacuum
 from executors.pg_stat_and_vacuum import PGStatAndVacuum
@@ -32,87 +30,24 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
             tag4 = "tag_vanilla%s" % tag_suffix
 
             # Control with RL model #1
-            run_with_params({
-                'apply_options_only': False,
-                'tag': tag1,
-                'db_host': instance_url,
-                'db_user': instance_user,
-                'db_pwd': instance_password,
-                'db_name': instance_dbname,
-                'initial_size': initial_size,
-                'update_speed': update_speed,
-                'initial_delay': 5,
-                'max_seconds': experiment_duration,
-                'control_autovac': True,
-                'enable_pid': False,
-                'enable_learning': False,
-                'rl_model_filename': model1_filename,
-                'enable_agent': True,
-                # START pggrill only
-                'num_cols': 0,
-                'num_indexes': 0,
-                'num_partitions': 0,
-                'updated_percentage': 10,
-                'num_workers': 5,
-                # END pggrill only
-            })
+            run_with_params(False, tag1, instance_url, instance_user, instance_password, instance_dbname,
+                            initial_size, update_speed, 5, experiment_duration, True, False, False,
+                            model1_filename, True)
 
-            # # Control with RL model #2
-            # run_with_params({
-            #     'apply_options_only': False,
-            #     'tag': tag2,
-            #     'db_host': instance_url,
-            #     'db_user': instance_user,
-            #     'db_pwd': instance_password,
-            #     'db_name': instance_dbname,
-            #     'initial_size': initial_size,
-            #     'update_speed': update_speed,
-            #     'initial_delay': 5,
-            #     'max_seconds': experiment_duration,
-            #     'control_autovac': True,
-            #     'enable_pid': False,
-            #     'enable_learning': False,
-            #     'rl_model_filename': model2_filename,
-            #     'enable_agent': True
-            # })
+            # Control with RL model #1
+            run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
+                            initial_size, update_speed, 5, experiment_duration, True, False, False,
+                            model2_filename, True)
 
-            # # Control with PID
-            # run_with_params({
-            #     'apply_options_only': False,
-            #     'tag': tag3,
-            #     'db_host': instance_url,
-            #     'db_user': instance_user,
-            #     'db_pwd': instance_password,
-            #     'db_name': instance_dbname,
-            #     'initial_size': initial_size,
-            #     'update_speed': update_speed,
-            #     'initial_delay': 5,
-            #     'max_seconds': experiment_duration,
-            #     'control_autovac': True,
-            #     'enable_pid': True,
-            #     'enable_learning': False,
-            #     'rl_model_filename': "",
-            #     'enable_agent': True
-            # })
+            # Control with PID
+            run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
+                            initial_size, update_speed, 5, experiment_duration, True, True, False,
+                            "", True)
 
-            # # Control with default autovacuum
-            # run_with_params({
-            #     'apply_options_only': False,
-            #     'tag': tag4,
-            #     'db_host': instance_url,
-            #     'db_user': instance_user,
-            #     'db_pwd': instance_password,
-            #     'db_name': instance_dbname,
-            #     'initial_size': initial_size,
-            #     'update_speed': update_speed,
-            #     'initial_delay': 5,
-            #     'max_seconds': experiment_duration,
-            #     'control_autovac': False,
-            #     'enable_pid': False,
-            #     'enable_learning': False,
-            #     'rl_model_filename': "",
-            #     'enable_agent': True
-            # })
+            # Control with default autovacuum
+            run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
+                            initial_size, update_speed, 5, experiment_duration, False, False, False,
+                            "", True)
 
             gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
                            % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))
@@ -136,9 +71,9 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
     is_replay = False
     if model_type == "simulated":
         instance = SimulatedVacuum()
-    elif model_type == "real" or model_type == "real_replay":
+    elif model_type == "real" or model_type == "real-replay":
         instance = PGStatAndVacuum()
-        if model_type == "real_replay":
+        if model_type == "real-replay":
             is_replay = True
     else:
         assert("Invalid model type")
@@ -184,7 +119,7 @@ if __name__ == '__main__':
     parser.add_argument('--max-episodes', type=int, default=100, help='Maximum number of episodes for the experiment')
     parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
     parser.add_argument('--experiment-duration', type=int, default=120, help='Duration of the experiment in seconds')
-    parser.add_argument('--model-type', type=str, choices=['simulated', 'real'], help='Type of the model (simulated or real)')
+    parser.add_argument('--model-type', type=str, choices=['simulated', 'real', 'real-replay'], help='Type of the model (simulated or real)')
     parser.add_argument('--model1-filename', type=str, default='model1.pth', help='Filename for the first model')
     parser.add_argument('--model2-filename', type=str, default='model2.pth', help='Filename for the second model')
     parser.add_argument('--instance-url', type=str, help='URL of the database instance')

@@ -8,9 +8,9 @@ class SimulatedVacuum(VacuumExperiment):
         self.initial_size = params['initial_size']
         self.update_speed = params['update_speed']
 
-        print("Environment info (for SimulatedVacuum):")
-        for x in self.env_info:
-            print ('\t', x, ':', self.env_info[x])
+        #print("Environment info (for SimulatedVacuum):")
+        #for x in self.env_info:
+        #    print ('\t', x, ':', self.env_info[x])
 
         self.env_info['experiment_id'] += 1
 
