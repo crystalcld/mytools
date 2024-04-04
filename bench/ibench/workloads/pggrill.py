@@ -49,9 +49,8 @@ import argparse
 import psycopg2
 import psycopg2.extras
 import numpy as np
-import json
+import math
 import random
-import string
 import time
 from datetime import datetime, date, timedelta
 from multiprocessing import Process, Value
@@ -526,7 +525,28 @@ def main(args, barrier):
     if args.manualvacuum_enable:
         vacuum_process.join()
 
+def collectExperimentParams(env_info):
+    initial_size = random.randint(env_info['initial_size_range'][0], env_info['initial_size_range'][1])
+    update_speed = random.randint(env_info['update_speed_range'][0], env_info['update_speed_range'][1])
+    num_cols = random.randint(env_info['num_cols_range'][0], env_info['num_cols_range'][1])
+    num_indexes = random.randint(env_info['num_indexes_range'][0], env_info['num_indexes_range'][1])
+    num_partitions = random.randint(env_info['num_partitions_range'][0], env_info['num_partitions_range'][1])
+    table_name = get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions)
+
+    env_info['initial_size'] = initial_size
+    env_info['update_speed'] = update_speed
+    env_info['num_cols'] = num_cols
+    env_info['num_indexes'] = num_indexes
+    env_info['num_partitions'] = num_partitions
+    env_info['table_name'] = table_name
+
+def run_with_params(args):
+    main(args, None)
+
+
 def run_with_default_settings(barrier, env_info):
+    collectExperimentParams(env_info)
+
     ManualInput = namedtuple(
         "ManualInput",
         [
@@ -554,7 +574,7 @@ def run_with_default_settings(barrier, env_info):
         db_password=env_info["db_pwd"],
         initial_rows=env_info['initial_size'],
         updated_percentage=random.randint(env_info['updated_percentage_range'][0], env_info['updated_percentage_range'][1]),
-        updates_per_cycle=random.randint(env_info['update_speed_range'][0], env_info['update_speed_range'][1]),
+        updates_per_cycle=env_info['update_speed'],
         num_workers=random.randint(env_info['num_workers_range'][0], env_info['num_workers_range'][1]),
         duration=120,
         disable_autovacuum=True,

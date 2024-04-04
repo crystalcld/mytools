@@ -273,9 +273,17 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'db_host': instance_url,
         'db_user': instance_user,
         'db_pwd': instance_password,
-        'table_name': 'purchases_index',
         'initial_delay': 5,
-        'max_seconds': experiment_duration
+        'max_seconds': experiment_duration,
+        # START pggrill only
+        'initial_size_range': [1000_000, 1000_000],
+        'update_speed_range': [100, 100_000],
+        'num_cols_range': [0, 0],
+        'num_indexes_range': [0, 0],
+        'num_partitions_range': [0, 0],
+        'updated_percentage_range': [1, 50],
+        'num_workers_range': [1, 50],
+        # END pggrill only
     }
 
     experiment_configs = {
