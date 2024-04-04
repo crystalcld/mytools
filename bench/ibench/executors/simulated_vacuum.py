@@ -1,6 +1,7 @@
 from workloads.iibench_driver import collectExperimentParams
+from executors.vacuum_experiment import VacuumExperiment
 
-class SimulatedVacuum:
+class SimulatedVacuum(VacuumExperiment):
     def startExp(self, env_info):
         self.env_info = env_info
         params = collectExperimentParams(self.env_info)

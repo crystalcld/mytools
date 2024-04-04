@@ -10,8 +10,6 @@ from workloads.iibench_driver import run_with_params
 
 from tqdm.auto import tqdm
 
-from abc import ABC, abstractmethod
-
 from executors.simulated_vacuum import SimulatedVacuum
 from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
@@ -55,27 +53,6 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
                            % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))
             print("Gnuplot command: ", gnuplot_cmd)
             os.system(gnuplot_cmd)
-
-class VacuumExperiment(ABC):
-    @abstractmethod
-    def startExp(self, env_info):
-        pass
-
-    @abstractmethod
-    def step(self):
-        pass
-
-    @abstractmethod
-    def getTotalAndUsedSpace(self):
-        pass
-
-    @abstractmethod
-    def getTupleStats(self):
-        pass
-
-    @abstractmethod
-    def doVacuum(self):
-        pass
 
 def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {

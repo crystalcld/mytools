@@ -2,8 +2,9 @@ import time
 import psycopg2
 from workloads.iibench_driver import collectExperimentParams, run_with_default_settings
 from multiprocessing import Barrier, Process
+from executors.vacuum_experiment import VacuumExperiment
 
-class PGStatAndVacuum:
+class PGStatAndVacuum(VacuumExperiment):
     def startExp(self, env_info):
         self.env_info = env_info
         self.db_name = env_info['db_name']
