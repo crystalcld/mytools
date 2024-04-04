@@ -68,10 +68,13 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'model_filename' : model1_filename
     }
 
+    is_replay = False
     if model_type == "simulated":
         instance = SimulatedVacuum()
-    elif model_type == "real":
+    elif model_type == "real" or model_type == "real_replay":
         instance = PGStatAndVacuum()
+        if model_type == "real_replay":
+            is_replay = True
     else:
         assert("Invalid model type")
 
@@ -83,7 +86,11 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'db_user': instance_user,
         'db_pwd': instance_password,
         'initial_delay': 5,
-        'max_seconds': experiment_duration
+        'max_seconds': experiment_duration,
+        'approx_bytes_per_tuple': 100,
+        'is_replay': is_replay,
+        'replay_filename_mask': 'replay_n%d.txt',
+        'state_history_length': 10
     }
 
     experiment_configs = {
