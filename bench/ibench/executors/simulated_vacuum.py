@@ -3,13 +3,15 @@ from workloads.iibench_driver import collectExperimentParams
 class SimulatedVacuum:
     def startExp(self, env_info):
         self.env_info = env_info
-        collectExperimentParams(self.env_info)
-        self.initial_size = self.env_info['initial_size']
-        self.update_speed = self.env_info['update_speed']
+        params = collectExperimentParams(self.env_info)
+        self.initial_size = params['initial_size']
+        self.update_speed = params['update_speed']
 
         print("Environment info (for SimulatedVacuum):")
         for x in self.env_info:
             print ('\t', x, ':', self.env_info[x])
+        for x in params:
+            print ('\t', x, ':', params[x])
 
         self.env_info['experiment_id'] += 1
 

@@ -11,14 +11,16 @@ class PGStatAndVacuum:
         self.db_user = env_info['db_user']
         self.db_pwd = env_info['db_pwd']
 
-        collectExperimentParams(self.env_info)
-        self.initial_size = self.env_info['initial_size']
-        self.update_speed = self.env_info['update_speed']
-        self.table_name = self.env_info['table_name']
+        params = collectExperimentParams(self.env_info)
+        self.initial_size = params['initial_size']
+        self.update_speed = params['update_speed']
+        self.table_name = params['table_name']
 
         print("Environment info (for PGStatAndVacuum):")
         for x in self.env_info:
             print ('\t', x, ':', self.env_info[x])
+        for x in params:
+            print ('\t', x, ':', params[x])
 
         # Connect to Postgres
         conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
