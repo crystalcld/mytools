@@ -1,3 +1,4 @@
+import importlib
 import os
 import argparse
 import sys
@@ -6,14 +7,13 @@ from learning.autovac_rl import AutoVacEnv
 from learning.rl_glue import RLGlue
 from learning.rl import Agent, default_network_arch
 
-from workloads.iibench_driver import run_with_params
-
 from tqdm.auto import tqdm
 
 from executors.simulated_vacuum import SimulatedVacuum
 from executors.pg_stat_and_vacuum import PGStatAndVacuum
 
-def benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+def benchmark(workload_driver, resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+    run_with_params = workload_driver.run_with_params
     id = 0
     for initial_size in tqdm([10000, 100000, 1000000]):
         for update_speed in tqdm([500, 1000, 2000, 4000, 8000, 16000, 32000, 64000]):
@@ -34,27 +34,28 @@ def benchmark(resume_id, experiment_duration, model_type, model1_filename, model
                             initial_size, update_speed, 5, experiment_duration, True, False, False,
                             model1_filename, True)
 
-            # Control with RL model #1
-            run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, True, False, False,
-                            model2_filename, True)
+            # # Control with RL model #1
+            # if model2_filename and model2_filename != "":
+            #     run_with_params(False, tag2, instance_url, instance_user, instance_password, instance_dbname,
+            #                     initial_size, update_speed, 5, experiment_duration, True, False, False,
+            #                     model2_filename, True)
 
-            # Control with PID
-            run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, True, True, False,
-                            "", True)
+            # # Control with PID
+            # run_with_params(False, tag3, instance_url, instance_user, instance_password, instance_dbname,
+            #                 initial_size, update_speed, 5, experiment_duration, True, True, False,
+            #                 "", True)
 
-            # Control with default autovacuum
-            run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
-                            initial_size, update_speed, 5, experiment_duration, False, False, False,
-                            "", True)
+            # # Control with default autovacuum
+            # run_with_params(False, tag4, instance_url, instance_user, instance_password, instance_dbname,
+            #                 initial_size, update_speed, 5, experiment_duration, False, False, False,
+            #                 "", True)
 
             gnuplot_cmd = ("gnuplot -e \"outfile='graph%s.png'; titlestr='Query latency graph (%s)'; filename1='%s_latencies.txt'; filename2='%s_latencies.txt'; filename3='%s_latencies.txt'; filename4='%s_latencies.txt'\" gnuplot_script.txt"
                            % (tag_suffix, tag_suffix, tag1, tag2, tag3, tag4))
             print("Gnuplot command: ", gnuplot_cmd)
             os.system(gnuplot_cmd)
 
-def learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
+def learn(workload_driver, resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname):
     agent_configs = {
         'network_arch': default_network_arch,
 
@@ -92,6 +93,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'is_replay': is_replay,
         'replay_filename_mask': 'replay_n%d.txt',
         'state_history_length': 10,
+        'workload_driver': workload_driver,
         # START pggrill only
         'initial_size_range': [1000_000, 1000_000],
         'update_speed_range': [100, 100_000],
@@ -116,6 +118,7 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run the AutoVacuum reinforcement learning driver.")
     parser.add_argument('--cmd', type=str, choices=['benchmark', 'learn'], help='Command to execute (benchmark or learn)')
+    parser.add_argument('--workload-type', type=str, choices=['pggrill', 'iibench'], required=True, help='Type of the workload driver (pggrill or iibench)')
     parser.add_argument('--max-episodes', type=int, default=100, help='Maximum number of episodes for the experiment')
     parser.add_argument('--resume-id', type=int, default=0, help='Identifier to resume from a previous state')
     parser.add_argument('--experiment-duration', type=int, default=120, help='Duration of the experiment in seconds')
@@ -130,6 +133,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     cmd = args.cmd
+    
+    # Load the specified workload driver dynamically
+    workload_driver = importlib.import_module(f"workloads.{args.workload_type}_driver")
 
     max_episodes = args.max_episodes
     resume_id = args.resume_id
@@ -143,8 +149,8 @@ if __name__ == '__main__':
     instance_dbname = args.instance_dbname
 
     if cmd == "benchmark":
-        benchmark(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
+        benchmark(workload_driver, resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     elif cmd == "learn":
-        learn(resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
+        learn(workload_driver, resume_id, experiment_duration, model_type, model1_filename, model2_filename, instance_url, instance_user, instance_password, instance_dbname)
     else:
         print("Invalid command")

@@ -612,17 +612,42 @@ def merge_dicts(dict1, dict2):
     """
     return {**dict1, **dict2}
 
-def run_with_params(env_info, barrier=None):
+def run_with_params(apply_options_only, tag, db_host, db_user, db_pwd, db_name, initial_size, update_speed,
+                    initial_delay, max_seconds, control_autovac, enable_pid, enable_learning, rl_model_filename, enable_agent):
+    env_info = {
+        'apply_options_only': apply_options_only,
+        'tag': tag,
+        'db_host': db_host,
+        'db_user': db_user,
+        'db_pwd': db_pwd,
+        'db_name': db_name,
+        'initial_size': initial_size,
+        'update_speed': update_speed,
+        'initial_delay': initial_delay,
+        'max_seconds': max_seconds,
+        'control_autovac': control_autovac,
+        'enable_pid': enable_pid,
+        'enable_learning': enable_learning,
+        'rl_model_filename': rl_model_filename,
+        'enable_agent': enable_agent,
+        'num_cols': 0,
+        'num_indexes': 0,
+        'num_partitions': 0,
+        'updated_percentage': 5,
+        'num_workers': 5,
+    }
+    run_with_params_internal(env_info)
+
+def run_with_params_internal(env_info, barrier=None):
     calc_params = collectCalculatedParams(env_info)
     env_info = merge_dicts(env_info, calc_params)
     args = env_info_to_named_tuple(env_info)
     main(args, barrier)
 
-
 def run_with_default_settings(barrier, env_info):
     params = collectExperimentParams(env_info)
     env_info = merge_dicts(env_info, params)
-    run_with_params(env_info, barrier)
+    run_with_params_internal(env_info, barrier)
 
 def get_bench_table_name(initial_size, num_cols, num_indexes, num_partitions):
     return f"test_data_{initial_size}_c{num_cols}_i{num_indexes}_p{num_partitions}"

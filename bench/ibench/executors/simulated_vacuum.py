@@ -1,10 +1,10 @@
-from workloads.iibench_driver import collectExperimentParams
 from executors.vacuum_experiment import VacuumExperiment
 
 class SimulatedVacuum(VacuumExperiment):
     def startExp(self, env_info):
         self.env_info = env_info
-        params = collectExperimentParams(self.env_info)
+        self.workload_driver = self.env_info['workload_driver']
+        params = self.workload_driver.collectExperimentParams(self.env_info)
         self.initial_size = params['initial_size']
         self.update_speed = params['update_speed']
 

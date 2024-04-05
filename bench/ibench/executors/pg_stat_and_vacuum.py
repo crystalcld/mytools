@@ -1,6 +1,5 @@
 import time
 import psycopg2
-from workloads.iibench_driver import collectExperimentParams, run_with_default_settings
 from multiprocessing import Barrier, Process
 from executors.vacuum_experiment import VacuumExperiment
 
@@ -11,8 +10,9 @@ class PGStatAndVacuum(VacuumExperiment):
         self.db_host = env_info['db_host']
         self.db_user = env_info['db_user']
         self.db_pwd = env_info['db_pwd']
+        self.workload_driver = env_info['workload_driver']
 
-        params = collectExperimentParams(self.env_info)
+        params = self.workload_driver.collectExperimentParams(self.env_info)
         self.table_name = params['table_name']
 
         # print("Environment info (for PGStatAndVacuum):")
@@ -32,7 +32,7 @@ class PGStatAndVacuum(VacuumExperiment):
                   % (len(self.replay_buffer), self.replay_filename))
         else:
             barrier = Barrier(2)
-            self.workload_thread = Process(target=run_with_default_settings, args=(barrier, self.env_info))
+            self.workload_thread = Process(target=self.workload_driver.run_with_default_settings, args=(barrier, self.env_info))
             self.workload_thread.start()
             # We wait until the workload is initialized and ready to start
             barrier.wait()
