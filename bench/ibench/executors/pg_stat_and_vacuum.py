@@ -15,11 +15,11 @@ class PGStatAndVacuum(VacuumExperiment):
         params = collectExperimentParams(self.env_info)
         self.table_name = params['table_name']
 
-        print("Environment info (for PGStatAndVacuum):")
-        for x in self.env_info:
-            print ('\t', x, ':', self.env_info[x])
-        for x in params:
-            print ('\t', x, ':', params[x])
+        # print("Environment info (for PGStatAndVacuum):")
+        # for x in self.env_info:
+        #     print ('\t', x, ':', self.env_info[x])
+        # for x in params:
+        #     print ('\t', x, ':', params[x])
 
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
