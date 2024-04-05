@@ -10,6 +10,53 @@ import torch
 from learning.rl import RLModel, default_network_arch, softmax_policy
 
 def agent_thread(done_flag, FLAGS, get_conn):
+    """
+    Runs the agent thread for monitoring and managing database vacuuming processes.
+    
+    This function simulates an "agent" that periodically checks the status of the
+    database and decides whether to perform vacuuming based on the current state
+    and the configurations specified in FLAGS. It utilizes a PID controller for
+    managing the vacuum delay, adjusting it dynamically based on the live tuple
+    percentage and other performance metrics. It can also use a
+    reinforcement learning model to decide on the vacuuming actions.
+
+    Args:
+        done_flag (multiprocessing.Value): A shared flag for indicating when the
+                                           thread should terminate. It's monitored
+                                           continuously within the function, and
+                                           once it's set to True, the function
+                                           will conclude its operation.
+        FLAGS (dict): A dictionary containing configuration parameters that control
+                      the behavior of the vacuuming process, such as thresholds,
+                      delays, and feature toggles for logging, PID control, and
+                      learning model usage. Here is a sample configuration:
+                        FLAGS = {
+                            'initial_autovac_delay': 60,
+                            'enable_pid': False,
+                            'use_learned_model': False,
+                            'learned_model_file': 'your_model.pth',
+                            'control_autovac': False,
+                            'table_name': 'purchases_index',
+                            'tag': 'some_tag'
+                        }
+        get_conn (function): A function that establishes and returns a database
+                             connection object.
+
+    The function initializes the database connection using `get_conn`, sets up logging,
+    and enters a loop where it periodically checks database statistics (like tuple counts
+    and space usage) to make decisions about vacuuming. It logs activities and statistics
+    to a specified logging table and adjusts vacuuming parameters as necessary based on
+    the `FLAGS` configuration. The loop continues until the `done_flag` is set to True,
+    indicating that the process should be stopped, typically when the main application is
+    shutting down or the benchmarking process has completed.
+
+    Note:
+        - The function assumes that `FLAGS` and `get_conn` are provided correctly and
+          contain the necessary information and functionality for the operation.
+        - It uses PID control logic or a reinforcement learning model based on the
+          configuration in `FLAGS` to make decisions about vacuuming actions.
+    """
+
     db_conn = get_conn()
     cursor = db_conn.cursor()
     event_queue = Queue()
