@@ -21,13 +21,6 @@ class PGStatAndVacuum(VacuumExperiment):
         for x in params:
             print ('\t', x, ':', params[x])
 
-        # Connect to Postgres
-        conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
-        conn.set_session(autocommit=True)
-        self.cursor = conn.cursor()
-        print("Resetting stats...")
-        self.cursor.execute("SELECT pg_stat_reset()")
-
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
         self.replay_buffer_index = 0
@@ -47,6 +40,9 @@ class PGStatAndVacuum(VacuumExperiment):
             self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
             self.conn.set_session(autocommit=True)
             self.cursor = self.conn.cursor()
+
+            print("Resetting stats...")
+            self.cursor.execute("SELECT pg_stat_reset()")
 
             print("Disabling autovacuum...")
             self.cursor.execute("alter table %s set ("
