@@ -91,7 +91,16 @@ def learn(resume_id, experiment_duration, model_type, model1_filename, model2_fi
         'approx_bytes_per_tuple': 100,
         'is_replay': is_replay,
         'replay_filename_mask': 'replay_n%d.txt',
-        'state_history_length': 10
+        'state_history_length': 10,
+        # START pggrill only
+        'initial_size_range': [1000_000, 1000_000],
+        'update_speed_range': [100, 100_000],
+        'num_cols_range': [0, 0],
+        'num_indexes_range': [0, 0],
+        'num_partitions_range': [0, 0],
+        'updated_percentage_range': [1, 50],
+        'num_workers_range': [1, 50],
+        # END pggrill only
     }
 
     experiment_configs = {

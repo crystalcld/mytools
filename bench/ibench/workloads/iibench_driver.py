@@ -50,10 +50,16 @@ def collectExperimentParams(env_info):
     # Vary initial size from 10^4 to 10^6
     initial_size = math.ceil(math.pow(10, 4 + (experiment_id // 8) % 3))
 
-    return initial_size, update_speed
+    return {
+        'initial_size': initial_size,
+        'update_speed': update_speed,
+        'table_name': env_info['table_name'],
+    }
 
 def run_with_default_settings(barrier, env_info):
-    initial_size, update_speed = collectExperimentParams(env_info)
+    params = collectExperimentParams(env_info)
+    initial_size = params['initial_size']
+    update_speed = params['update_speed']
 
     run_with_params(True, "rl_model",
                     env_info['db_host'], env_info['db_user'], env_info['db_pwd'], env_info['db_name'],

@@ -1,6 +1,6 @@
 import time
 import psycopg2
-from workloads.iibench_driver import run_with_default_settings
+from workloads.iibench_driver import collectExperimentParams, run_with_default_settings
 from multiprocessing import Barrier, Process
 from executors.vacuum_experiment import VacuumExperiment
 
@@ -11,11 +11,15 @@ class PGStatAndVacuum(VacuumExperiment):
         self.db_host = env_info['db_host']
         self.db_user = env_info['db_user']
         self.db_pwd = env_info['db_pwd']
-        self.table_name = env_info['table_name']
 
-        #print("Environment info (for PGStatAndVacuum):")
-        #for x in self.env_info:
-        #    print ('\t', x, ':', self.env_info[x])
+        params = collectExperimentParams(self.env_info)
+        self.table_name = params['table_name']
+
+        print("Environment info (for PGStatAndVacuum):")
+        for x in self.env_info:
+            print ('\t', x, ':', self.env_info[x])
+        for x in params:
+            print ('\t', x, ':', params[x])
 
         self.is_replay = env_info['is_replay']
         self.replay_filename = env_info['replay_filename_mask'] % env_info['experiment_id']
@@ -36,6 +40,9 @@ class PGStatAndVacuum(VacuumExperiment):
             self.conn = psycopg2.connect(dbname=self.db_name, host=self.db_host, user=self.db_user, password=self.db_pwd)
             self.conn.set_session(autocommit=True)
             self.cursor = self.conn.cursor()
+
+            print("Resetting stats...")
+            self.cursor.execute("SELECT pg_stat_reset()")
 
             print("Disabling autovacuum...")
             self.cursor.execute("alter table %s set ("
