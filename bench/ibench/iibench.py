@@ -38,7 +38,7 @@ import random
 import sys
 import math
 import timeit
-from learning .agent_thread import agent_thread
+from learning.agent_thread import agent_thread
 
 letters_and_digits = string.ascii_letters + string.digits
 

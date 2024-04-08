@@ -56,6 +56,7 @@ from datetime import datetime, date, timedelta
 from multiprocessing import Process, Value
 import threading
 from collections import namedtuple
+from learning.agent_thread import agent_thread
 
 start_date = date(2023, 3, 20)
 
@@ -216,6 +217,16 @@ def has_n_partitions(args, cur):
     partition_count = cur.fetchone()[0]
     return partition_count == partitions
 
+def get_conn(args, autocommit_trx=True):
+    DB_NAME = args.db_name
+    USER = args.db_user
+    PASSWORD = args.db_password
+    HOST = args.db_host
+    
+    conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
+    conn.autocommit = autocommit_trx
+    return conn
+
 def initialize_table_with_mixed_states(args):
     table_name = get_table_name(args)
     """
@@ -223,13 +234,7 @@ def initialize_table_with_mixed_states(args):
     """
     print(f"{datetime.now()} - Checking table status for {table_name}...")
 
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
-    conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
-    conn.autocommit = True
+    conn = get_conn(args)
     cur = conn.cursor()
 
     skip_insert = False
@@ -297,23 +302,17 @@ def apply_batch_updates(cur, worker_id, update_count, start_id, end_id):
     # Use CALL for procedures instead of callproc
     cur.execute(f"CALL bulk_update_data(ARRAY{update_ids}::int[]);")
 
-def continuous_update(args, worker_id, end_time):
+def continuous_update(args, worker_id, end_time, done_flag):
     """
     Continuously update rows in the table using a Zipfian distribution for row selection.
     """
 
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
     while True:
-        conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
-        conn.autocommit = True
+        conn = get_conn(args)
         cur = conn.cursor()
 
         try:
-            while datetime.now() < end_time:
+            while done_flag.value != 1 and datetime.now() < end_time:
                 start_time = datetime.now()
 
                 total_rows = args.initial_size
@@ -330,6 +329,8 @@ def continuous_update(args, worker_id, end_time):
                     total_operations.value += args.updates_per_cycle
                     total_duration.value += duration
                 # print(f"{datetime.now()} - Worker {worker_id}: Batch update completed.")
+            
+            done_flag.value = 1  # setting this might be redundant
             break
         except Exception as e:
             print(f"Error in worker {worker_id}: {e}")
@@ -337,19 +338,14 @@ def continuous_update(args, worker_id, end_time):
             cur.close()
             conn.close()
 
-def execute_queries(args, end_time):
+def execute_queries(args, done_flag):
     table_name = get_table_name(args)
 
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
     while True:
-        conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
+        conn = get_conn(args)
         cur = conn.cursor()
         try:
-            while datetime.now() < end_time:
+            while done_flag.value != 1:
                 start_time = time.time()
                 cur.execute(f"SELECT * FROM {table_name}")
                 _ = cur.fetchall()
@@ -366,25 +362,19 @@ def execute_queries(args, end_time):
             cur.close()
             conn.close()
 
-def monitor_performance(args, end_time):
+def monitor_performance(args, done_flag):
     """
     Periodically log the average latency, cumulative throughput, and the percentage of live and dead tuples.
     """
     table_name = get_table_name(args)
 
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
-    conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
-    conn.autocommit = True
+    conn = get_conn(args)
     cur = conn.cursor()
 
     last_autovacuum_timestamp = None
     autovacuum_count = 0
 
-    while datetime.now() < end_time:
+    while done_flag.value != 1:
         time.sleep(1)
         with total_operations.get_lock(), total_duration.get_lock(), total_queries.get_lock(), total_query_time.get_lock():
             live_percentage = -1.0
@@ -430,21 +420,14 @@ def monitor_performance(args, end_time):
     cur.close()
     conn.close()
 
-def vacuum_worker(args, end_time):
+def vacuum_worker(args, done_flag):
     table_name = get_table_name(args)
-
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
-    conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
-    conn.autocommit = True  # VACUUM cannot run in a transaction block
+    conn = get_conn(args, autocommit_trx=True) # VACUUM cannot run in a transaction block
     cur = conn.cursor()
 
     vacuum_count = 0  # Keep track of how many times VACUUM has been executed
 
-    while datetime.now() < end_time:
+    while done_flag.value != 1:
         vacuum_start_time = time.time()
 
         # Execute the VACUUM command (consider using VACUUM (ANALYZE, VERBOSE) for more detailed output)
@@ -461,13 +444,7 @@ def vacuum_worker(args, end_time):
     conn.close()
 
 def adjust_autovacuum_setting(args):
-    DB_NAME = args.db_name
-    USER = args.db_user
-    PASSWORD = args.db_password
-    HOST = args.db_host
-
-    conn = psycopg2.connect(dbname=DB_NAME, user=USER, password=PASSWORD, host=HOST)
-    conn.autocommit = True
+    conn = get_conn(args, autocommit_trx=True)
     cur = conn.cursor()
 
     table_name = get_table_name(args)
@@ -502,26 +479,48 @@ def main(args, barrier):
     if barrier:
         barrier.wait()
 
+    # Flag to indicate that inserts are done
+    done_flag = Value('i', 0)
+
     end_time = datetime.now() + timedelta(seconds=args.duration)
 
-    processes = [Process(target=continuous_update, args=(args, i, end_time)) for i in range(args.num_workers)]
+    processes = [Process(target=continuous_update, args=(args, i, end_time, done_flag)) for i in range(args.num_workers)]
     for p in processes:
         p.start()
 
-    query_process = Process(target=execute_queries, args=(args, end_time,))
+    query_process = Process(target=execute_queries, args=(args, done_flag))
     query_process.start()
 
-    monitoring_thread = threading.Thread(target=monitor_performance, args=(args, end_time,), daemon=True)
+    monitoring_thread = threading.Thread(target=monitor_performance, args=(args, done_flag,), daemon=True)
     monitoring_thread.start()
+    
+    use_learned_model = len(args.rl_model_filename) > 0
+    
+    FLAGS_dict = {
+        'initial_autovac_delay': 60,
+        'enable_pid': args.enable_pid,
+        'use_learned_model': use_learned_model,
+        'learned_model_file': args.rl_model_filename,
+        'control_autovac': True,
+        'table_name': args.table_name,
+        'tag': args.tag
+    }
+    FLAGS = namedtuple('FLAGS', FLAGS_dict.keys())(*FLAGS_dict.values())
+    
+    if args.enable_agent:
+        agent = Process(target=agent_thread, args=(done_flag, FLAGS, lambda: get_conn(args),))
+        agent.start()
 
     if args.manualvacuum_enable:
-        vacuum_process = Process(target=vacuum_worker, args=(args, end_time,))
+        vacuum_process = Process(target=vacuum_worker, args=(args, done_flag,))
         vacuum_process.start()
 
     for p in processes:
         p.join()
     query_process.join()
     monitoring_thread.join()
+    if args.enable_agent:
+        agent.join()
     if args.manualvacuum_enable:
         vacuum_process.join()
 
@@ -575,6 +574,11 @@ def env_info_to_named_tuple(env_info):
             "num_indexes",
             "num_partitions",
             "table_name",
+            "enable_pid",
+            # "enable_learning",
+            "rl_model_filename",
+            "enable_agent",
+            "tag",
         ],
     )
     args = ManualInput(
@@ -594,6 +598,11 @@ def env_info_to_named_tuple(env_info):
         num_indexes=env_info['num_indexes'],
         num_partitions=env_info['num_partitions'],
         table_name=env_info['table_name'],
+        enable_pid=env_info['enable_pid'],
+        # enable_learning=env_info['enable_learning'],
+        rl_model_filename=env_info['rl_model_filename'],
+        enable_agent=env_info['enable_agent'],
+        tag=env_info['tag'],
     )
 
     return args
