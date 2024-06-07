@@ -127,6 +127,8 @@ DEFINE_integer('query_threads', 0, 'Number of query threads')
 DEFINE_boolean('query_pk_only', False, 'When true all queries use the PK index')
 DEFINE_boolean('setup', False,
                'Create table. Drop and recreate if it exists.')
+DEFINE_boolean('setup_only', False,
+               'Stop after load. Do not do inserts or queries.')
 DEFINE_integer('warmup', 0, 'TODO')
 DEFINE_integer('initial_size', 0, 'Number of initial tuples to insert before benchmarking')
 DEFINE_boolean('print_get_min', False, 'Print time for get_min query')
@@ -1437,6 +1439,8 @@ def run_benchmark():
         cursor.execute(rows)
       print("Done")
 
+  if FLAGS.setup_only:
+    return 0
   # Used to get all threads running at the same point in time
   barrier = Barrier(n_parties)
 
